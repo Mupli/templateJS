@@ -1,6 +1,6 @@
 {
     "name": "@mupli/templatejs",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "description": "simple MVC Javascript framework for browser",
     "main": "template.js",
     "repository": {
