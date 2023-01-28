@@ -32,32 +32,56 @@ export class TemplateApp {
         this._actions[name] = func;
     }
 
-    invoke(name, data = {}) {
+    invoke(name, data = {}, attr= {}) {
         const action = this._actions[name];
 
         if (action) {
-            action(data);
+            action(data, attr);
         } else {
             throw new Error("Not found action with name:" + name);
         }
     }
 
     bindClick(cssCls, actionName) {
-        this.click(cssCls, actionName);
+        this.executeAction("click", cssCls, actionName);
     }
-    /**
-     * @deprecated
-     * @param {*} cssCls
-     * @param {*} actionName
-     */
-    click(cssCls, actionName) {
-        var me = this;
-        $(document).on("click", cssCls, function (e) {
+
+    bindMouseOver(cssCls, actionName) {
+        this.executeAction("mouseover", cssCls, actionName);
+    }
+
+    bindMouseOut(cssCls, actionName) {
+        this.executeAction("mouseout", cssCls, actionName);
+    }
+
+    bindMouseLeave(cssCls, actionName) {
+        this.executeAction("mouseleave", cssCls, actionName);
+    }
+
+    bindChange(cssCls, actionName) {
+        this.executeAction("change", cssCls, actionName);
+    }
+
+    executeAction(eventName, cssCls, actionName) {
+        const me = this;
+        $(document).on(eventName, cssCls, function (e) {
             const action = me._actions[actionName];
             if (action) {
-                action($(this).data());
+                const component = $(this);
+                let data = {
+                    ...component.data(),
+                    [component.attr("name")]: component.val(),
+                };
+                // data.source = this;
+                // data.ev = e;
+
+                action(data, {
+                    ev: e,
+                    ...me._getAttr(component),
+                    source: this,
+                });
             } else {
-                throw new Error("Not found action with name:" + name);
+                throw new Error("Not found action with name:" + actionName);
             }
         });
     }
@@ -65,29 +89,74 @@ export class TemplateApp {
     bindForm(cssCls, actionName) {
         var me = this;
 
-        const fn = () => {
-            const data = me._getFormData($(cssCls).serializeArray());
+        const fn = (fd, attr) => {
+            const component = $(cssCls + " *[type='submit']");
+            // const data = me._getFormData(component.serializeArray());
+            // const data = me._getFormData(fd);
+
+            var data = {};
+            fd.forEach(function (value, key) {
+                value = _convertToValue(value);
+
+                if (key.indexOf(".") > 0) {
+                    const sp = key.split(".");
+                    let tmpData = data;
+
+                    for (let index = 0; index < sp.length - 1; index++) {
+                        const keyPart = sp[index];
+                        if (!tmpData[keyPart]) {
+                            tmpData[keyPart] = {};
+                        }
+                        tmpData = tmpData[keyPart];
+                    }
+
+                    tmpData[sp[sp.length - 1]] = value;
+                } else {
+                    data[key] = value;
+                }
+            });
+
             const action = me._actions[actionName];
 
             if (action) {
-                action(data);
+                action(data, {
+                    ev: attr.ev,
+                    source: attr.source,
+                    action: component.attr("action"),
+                    ...this._getAttr(component),
+                    formData: fd,
+                });
             } else {
                 throw new Error("Not found action with name:" + name);
             }
         };
 
-        $(document).on("click", cssCls + ' *[type="submit"]', (event) => {
+        let targetCls = "form" + cssCls;
+        // if (cssCls.indexOf("#")>= 0) {
+        //     targetCls = cssCls
+        // }
+        $(document).on("submit", targetCls, function (event) {
+            console.log("submit");
             event.preventDefault();
-
-            if ($(cssCls).validate) {
+            const fd = new FormData(this);
+            if ($(cssCls).valid) {
                 const c = $(cssCls).valid();
                 if (c) {
-                    fn();
+                    fn(fd , {ev: event, source: this});
                 }
             } else {
-                fn();
+                fn(fd, {ev: event, source: this});
             }
         });
+    }
+
+    _getAttr(component) {
+        let attributes = {};
+        $.each(component[0].attributes, function (index, attr) {
+            attributes[attr.name] = attr.value;
+        });
+
+        return attributes;
     }
 
     _getFormData(unindexed_array) {
@@ -116,3 +185,13 @@ export class TemplateApp {
 }
 
 export const app = new TemplateApp();
+
+function isNumeric(value) {
+    return /^\d+$/.test(value);
+}
+function _convertToValue(value) {
+    if (value == "true") return true;
+    if (value == "false") return false;
+    if (isNumeric(value)) return Number(value);
+    return value;
+}
