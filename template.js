@@ -43,26 +43,26 @@ export class TemplateApp {
     }
 
     bindClick(cssCls, actionName) {
-        this.executeAction("click", cssCls, actionName);
+        this._executeAction("click", cssCls, actionName);
     }
 
     bindMouseOver(cssCls, actionName) {
-        this.executeAction("mouseover", cssCls, actionName);
+        this._executeAction("mouseover", cssCls, actionName);
     }
 
     bindMouseOut(cssCls, actionName) {
-        this.executeAction("mouseout", cssCls, actionName);
+        this._executeAction("mouseout", cssCls, actionName);
     }
 
     bindMouseLeave(cssCls, actionName) {
-        this.executeAction("mouseleave", cssCls, actionName);
+        this._executeAction("mouseleave", cssCls, actionName);
     }
 
     bindChange(cssCls, actionName) {
-        this.executeAction("change", cssCls, actionName);
+        this._executeAction("change", cssCls, actionName);
     }
 
-    executeAction(eventName, cssCls, actionName) {
+    _executeAction(eventName, cssCls, actionName) {
         const me = this;
         $(document).on(eventName, cssCls, function (e) {
             const action = me._actions[actionName];
@@ -90,6 +90,7 @@ export class TemplateApp {
         var me = this;
 
         const fn = (fd, attr) => {
+            const formComponent = $("form"+cssCls)
             const component = $(cssCls + " *[type='submit']");
             // const data = me._getFormData(component.serializeArray());
             // const data = me._getFormData(fd);
@@ -122,8 +123,9 @@ export class TemplateApp {
                 action(data, {
                     ev: attr.ev,
                     source: attr.source,
-                    action: component.attr("action"),
-                    ...this._getAttr(component),
+                    action: formComponent.attr("action"),
+                    ...formComponent.data(),
+                    ...this._getAttr(formComponent),
                     formData: fd,
                 });
             } else {
@@ -193,5 +195,8 @@ function _convertToValue(value) {
     if (value == "true") return true;
     if (value == "false") return false;
     if (isNumeric(value)) return Number(value);
+    if (typeof value === 'string' || value instanceof String) {
+        if (!value.match(/\S/g)) return null;
+    }
     return value;
 }
